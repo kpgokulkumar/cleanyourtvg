@@ -633,6 +633,19 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             makeIconOnly((TextView) btnSettings);
         }
         if (cfg.iconOnlyInputs) makeIconOnly((TextView) btnInputs);
+        View btnBacklight = findViewById(R.id.btnBacklight);
+        btnBacklight.setVisibility(getResources().getBoolean(R.bool.show_backlight_control)
+                ? View.VISIBLE : View.GONE);
+        btnBacklight.setOnClickListener(v -> {
+            try {
+                ComponentName picture = ComponentName.unflattenFromString(
+                        getString(R.string.backlight_settings_component));
+                if (picture == null) throw new android.content.ActivityNotFoundException();
+                startActivity(new Intent().setComponent(picture));
+            } catch (android.content.ActivityNotFoundException | SecurityException e) {
+                Toast.makeText(this, R.string.backlight_unavailable, Toast.LENGTH_LONG).show();
+            }
+        });
         btnSettings.setOnLongClickListener(v -> {
             showSettingsMenu();
             return true;
@@ -655,6 +668,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) return v.getId() == leftButton;
             return keyCode == KeyEvent.KEYCODE_DPAD_RIGHT && v.getId() == rightButton;
         };
+        btnBacklight.setOnKeyListener(pillKeys);
         btnInputs.setOnKeyListener(pillKeys);
         btnWifi.setOnKeyListener(pillKeys);
         btnSettings.setOnKeyListener(pillKeys);
@@ -2097,6 +2111,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private View firstTopButton() {
         if (btnWifi.getVisibility() == View.VISIBLE) return btnWifi;
         if (btnReorder.getVisibility() == View.VISIBLE) return btnReorder;
+        View backlight = findViewById(R.id.btnBacklight);
+        if (backlight.getVisibility() == View.VISIBLE) return backlight;
         return findViewById(R.id.btnSettings);
     }
 
