@@ -53,4 +53,10 @@
         <item name="android:layout_marginEnd">10dp</item>
         <item name="android:gravity">center</item>
     </style>
+    <style name="PlannerTimePicker" parent="android:Theme.Material.Dialog.Alert">
+        <item name="android:timePickerStyle">@style/PlannerTimeWidget</item>
+    </style>
+    <style name="PlannerTimeWidget" parent="android:Widget.Material.TimePicker">
+        <item name="android:timePickerMode">spinner</item>
+    </style>
 </resources>

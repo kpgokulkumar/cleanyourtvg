@@ -324,6 +324,13 @@
                     android:nextFocusDown="@+id/grid" />
 
                 <TextView
+                    android:id="@+id/btnPlanner"
+                    style="@style/TopButtonIcon"
+                    android:contentDescription="@string/planner_title"
+                    android:drawableStart="@drawable/ic_planner"
+                    android:nextFocusDown="@+id/grid" />
+
+                <TextView
                     android:id="@+id/btnBacklight"
                     style="@style/TopButtonIcon"
                     android:visibility="gone"

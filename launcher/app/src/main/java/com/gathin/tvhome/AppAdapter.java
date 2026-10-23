@@ -111,6 +111,10 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         return Math.round(tileWidthPx * DESIGN_H_DP / DESIGN_W_DP);
     }
 
+    static int dockTileHeightPx(int width, int percent) {
+        return Math.round(tileHeightPx(width) * Math.max(50, Math.min(100, percent)) / 100f);
+    }
+
     /** Height of one grid item: the tile, the name label under it and the item's own padding. */
     static int itemHeightPx(int tileHeightPx, float density) {
         return itemHeightPx(tileHeightPx, true, density);
@@ -402,7 +406,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             v.setPadding(v.getPaddingLeft(), pad, v.getPaddingRight(), pad);
         }
         name.setLayoutParams(nameLp);
-        return new Holder(v, listener, animations, advancedEffects, reducedMotion, restNameAlpha, focusOvershoot);
+        return new Holder(v, listener, animations, advancedEffects, reducedMotion, restNameAlpha, focusOvershoot, inner / dockSize);
     }
 
     @Override
@@ -410,6 +414,23 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         if (isLibraryAt(position)) return;
         Holder h = (Holder) holder;
         Entry e = items.get(position);
+        float density = ctx.getResources().getDisplayMetrics().density;
+        ViewGroup.LayoutParams cardLp = h.card.getLayoutParams();
+        int percent = dockRow && position < dockSize
+                ? Math.max(50, Math.min(100, ctx.getResources().getInteger(R.integer.dock_tile_scale_percent))) : 100;
+        int width = Math.round(h.originalWidth * percent / 100f);
+        int height = dockTileHeightPx(h.originalWidth, percent);
+        float offset = position < dockSize ? (position - (dockSize - 1) / 2f) * h.cellWidth * (percent / 100f - 1f) : 0f;
+        h.itemView.setTranslationX(h.itemView.getLayoutDirection() == View.LAYOUT_DIRECTION_RTL ? -offset : offset);
+        if (cardLp.height != height || cardLp.width != width) {
+            cardLp.width = width;
+            cardLp.height = height;
+            h.card.setLayoutParams(cardLp);
+            ViewGroup.MarginLayoutParams nameLp = (ViewGroup.MarginLayoutParams) h.name.getLayoutParams();
+            nameLp.width = width;
+            nameLp.topMargin = height + Math.round((dockRow ? 7 : 4) * density);
+            h.name.setLayoutParams(nameLp);
+        }
         if (e.kind == Entry.EMPTY) {
             // A free dock slot keeps its place in the row and the band, but shows nothing and takes no focus.
             h.card.setVisibility(View.INVISIBLE);
@@ -430,8 +451,8 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         h.name.setAlpha(focused ? 1f : restNameAlpha);
         h.card.setScaleX(focused && animations ? focusScale() : 1f);
         h.card.setScaleY(focused && animations ? focusScale() : 1f);
-        h.card.setTranslationY(focused && advancedEffects ? -4f * ctx.getResources().getDisplayMetrics().density : 0f);
-        h.card.setTranslationZ(focused && advancedEffects ? 8f * ctx.getResources().getDisplayMetrics().density : 0f);
+        h.card.setTranslationY(focused && advancedEffects ? -4f * density : 0f);
+        h.card.setTranslationZ(focused && advancedEffects ? 8f * density : 0f);
         h.banner.setScaleX(focused && advancedEffects ? 1.035f : 1f);
         h.banner.setScaleY(focused && advancedEffects ? 1.035f : 1f);
         // A fully opaque banner covers the whole card (centerCrop), so the card's own fill under it is drawn for
@@ -688,10 +709,14 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         final float restNameAlpha;
         final boolean overshoot;
 
+        final int originalWidth, cellWidth;
+
         Holder(View v, TileListener listener, boolean animations, boolean advancedEffects,
-               boolean reducedMotion, float restNameAlpha, boolean overshoot) {
+               boolean reducedMotion, float restNameAlpha, boolean overshoot, int cellWidth) {
             super(v);
             card = v.findViewById(R.id.card);
+            originalWidth = card.getLayoutParams().width;
+            this.cellWidth = cellWidth;
             cardBackground = card.getBackground();
             banner = v.findViewById(R.id.banner);
             icon = v.findViewById(R.id.icon);

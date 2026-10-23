@@ -135,6 +135,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private WallpaperPlayer wallpaperPlayer;
     private GlassView glass;
     private View ambient;
+    private StreamingBackdrop streamingBackdrop;
     private TextView heroName;
     /** The top shelf: heroName, plus the cinematic shelf's "Last opened" line and dock position dots. */
     private View hero;
@@ -403,7 +404,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         heroMeta = findViewById(R.id.heroMeta);
         heroDots = findViewById(R.id.heroDots);
         heroArt = findViewById(R.id.heroArt);
-        cinematic = cfg.cinematicHome;
+        streamingBackdrop = StreamingBackdrop.create(this, root);
+        cinematic = cfg.cinematicHome && streamingBackdrop == null;
         glowStyle = cfg.glowStyle;
         if (cinematic) setUpCinematicShelf();
         // dock_title false: the name above the dock (and the cinematic lines under it) never shows; the glow
@@ -522,12 +524,16 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             int inner = (r - l) - grid.getPaddingLeft() - grid.getPaddingRight();
             int tileW = AppAdapter.tileWidthPx(inner, h, COLUMNS, rowsBelowDock, cfg.dockTitle, cfg.dockRow, density);
             int itemH = AppAdapter.itemHeightPx(AppAdapter.tileHeightPx(tileW), density);
-            int dockRow = itemH + (int) (AppAdapter.DOCK_EXTRA_DP * density);   // item height plus DockDecoration offsets
+            int dockHeight = AppAdapter.dockTileHeightPx(tileW, getResources().getInteger(R.integer.dock_tile_scale_percent));
+            int dockRow = AppAdapter.itemHeightPx(dockHeight, density) + (int) (AppAdapter.DOCK_EXTRA_DP * density);
             int gridRows = itemH * rowsBelowDock;
             // Keep the hero below the header when the library is enabled on a short screen,
             // even when the theme requests an extra visible row below the dock.
             int shelfClearance = cfg.appLibrary ? hero.getMeasuredHeight() + (int) (40 * density) : 0;
-            int want = Math.max(shelfClearance, h - dockRow - gridRows - (int) (AppAdapter.BOTTOM_ROOM_DP * density));
+            // With no requested rows below the dock, the usual bottom reserve exposes the next row.
+            // Let the dock item reach the viewport's bottom; its own padding still protects the band and zoom.
+            int bottomRoom = rowsBelowDock == 0 ? 0 : (int) (AppAdapter.BOTTOM_ROOM_DP * density);
+            int want = Math.max(shelfClearance, h - dockRow - gridRows - bottomRoom);
             // Where the rows cannot fit even at the smallest tile (3 rows with the title on), the title keeps its
             // room above the dock and the last rows run off the bottom instead of the title drawing over the clock.
             if (MainActivity.this.dockRow && cfg.dockTitle && rowsBelowDock > 0) want = Math.max(want, (int) (AppAdapter.TITLE_ROOM_DP * density));
@@ -668,6 +674,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) return v.getId() == leftButton;
             return keyCode == KeyEvent.KEYCODE_DPAD_RIGHT && v.getId() == rightButton;
         };
+        View btnPlanner = findViewById(R.id.btnPlanner);
+        btnPlanner.setOnClickListener(v -> startActivity(new Intent(this, PlannerActivity.class)));
+        btnPlanner.setOnKeyListener(pillKeys);
         btnBacklight.setOnKeyListener(pillKeys);
         btnInputs.setOnKeyListener(pillKeys);
         btnWifi.setOnKeyListener(pillKeys);
@@ -801,6 +810,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         }
         updateClockVisibility();
         tileRefresh.onStart();
+        if (streamingBackdrop != null) streamingBackdrop.focus(lastFocused < COLUMNS ? adapter.packageAt(lastFocused) : null);
     }
 
     @Override
@@ -1042,6 +1052,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         handler.removeCallbacks(clockCheck);
         stopped = true;
         tileRefresh.onStop();
+        if (streamingBackdrop != null) streamingBackdrop.stop();
     }
 
     /**
@@ -1082,6 +1093,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         super.onDestroy();
         unregisterReceiver(packageReceiver);
         wallpaperPlayer.close();
+        if (streamingBackdrop != null) streamingBackdrop.close();
         ConnectivityManager cm = getSystemService(ConnectivityManager.class);
         TvInputManager tim = (TvInputManager) getSystemService(TV_INPUT_SERVICE);
         if (tim != null) tim.unregisterCallback(inputCallback);
@@ -1474,10 +1486,13 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             });
             return;
         }
+        if (streamingBackdrop != null) streamingBackdrop.focus(position < COLUMNS ? adapter.packageAt(position) : null);
         // Tile rect in root coordinates, using layout positions (ignores the scale animation).
         Rect r = tileRect;
         r.set(0, 0, card.getWidth(), card.getHeight());
         root.offsetDescendantRectToMyCoords(card, r);
+        // Descendant rect offsets omit the compact dock item's visual translation.
+        r.offset((int) ((View) card.getParent()).getTranslationX(), 0);
         float pad = 6f * density;        // matches GlassView's glow inset
         float scale = adapter.focusScale();
         float w = card.getWidth() * scale + 2 * pad;
@@ -2107,13 +2122,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         hideHero();
     }
 
-    /** The first top-bar button after Inputs that is shown: the network pill, Reorder, then Settings (always there). */
+    /** The first visible top-bar button after Inputs. */
     private View firstTopButton() {
         if (btnWifi.getVisibility() == View.VISIBLE) return btnWifi;
         if (btnReorder.getVisibility() == View.VISIBLE) return btnReorder;
-        View backlight = findViewById(R.id.btnBacklight);
-        if (backlight.getVisibility() == View.VISIBLE) return backlight;
-        return findViewById(R.id.btnSettings);
+        return findViewById(R.id.btnPlanner);
     }
 
     @Override public void onLibraryUp() {
@@ -2903,6 +2916,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         if (moduleCards) addSettingsMenuRow(rows, popup, R.string.module_cards, this::showModuleCards);
         if (dockRow) addSettingsMenuRow(rows, popup, R.string.dock_edit, this::startDockEdit);
         addSettingsMenuRow(rows, popup, R.string.reorder, this::toggleReorder);
+        if (streamingBackdrop != null) addSettingsMenuRow(rows, popup, R.string.streaming_credits_title, streamingBackdrop::credits);
         panel.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
         popup.setWidth(Math.max((int) (200 * density), panel.getMeasuredWidth()));
         // Hebrew puts Settings at the left of the header: grow the menu inward from it.

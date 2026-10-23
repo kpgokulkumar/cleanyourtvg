@@ -147,4 +147,42 @@
     <string name="last_opened">Last opened %1$s</string>
     <string name="backlight">Backlight</string>
     <string name="backlight_unavailable">Picture settings are unavailable on this TV.</string>
+    <string name="streaming_source">%1$s · India · %2$s · Listing checked %3$s</string>
+    <string name="streaming_credits_title">Movie artwork credits</string>
+    <string name="streaming_credits">This product uses the TMDB API but is not endorsed or certified by TMDB.
+
+Images and metadata: TMDB. India subscription availability: JustWatch. Listings may vary by plan and be cached for up to seven days.
+
+TMDB receives searches, title/provider queries and your IP, never streaming credentials or viewing history.</string>
+    <string name="planner_title">Release calendar</string>
+    <string name="planner_back">‹ Home</string>
+    <string name="planner_hint">India releases · Search a title to track it. Each card shows its actual release date.</string>
+    <string name="planner_add">+ Add</string>
+    <string name="planner_empty">No dated releases</string>
+    <string name="planner_name">Movie or show title</string>
+    <string name="planner_app">App to open (optional)</string>
+    <string name="planner_open">Open app</string>
+    <string name="planner_edit">Edit slot</string>
+    <string name="planner_remove">Remove slot</string>
+    <string name="planner_save">Save</string>
+    <string name="planner_read_failed">Could not read the saved planner.</string>
+    <string name="planner_save_failed">Could not save. Your schedule has not changed.</string>
+    <string name="planner_app_missing">This app is not installed or cannot be opened.</string>
+    <string-array name="planner_apps">
+        <item>No app</item><item>Netflix</item><item>Prime Video</item><item>JioHotstar</item>
+        <item>SonyLIV</item><item>ZEE5</item><item>Sun NXT</item><item>YouTube</item>
+    </string-array>
+    <string name="release_search">Search TMDB</string>
+    <string name="release_loading">Checking TMDB…</string>
+    <string name="release_unannounced">Unannounced dates</string>
+    <string name="release_no_saved">No titles with unannounced dates saved.</string>
+    <string name="release_time_unknown">Time unannounced</string>
+    <string name="release_date_unknown">India streaming date unannounced</string>
+    <string name="release_india_date">India digital date:</string>
+    <string name="release_app">India subscription app:</string>
+    <string name="release_app_unknown">India subscription app unconfirmed</string>
+    <string name="release_refresh">Refresh release info</string>
+    <string name="release_failed">TMDB unavailable. Check the connection and TMDB setup.</string>
+    <string name="release_no_results">No matching movies or shows found.</string>
+    <string name="release_attribution">TMDB · JustWatch. India digital dates vary by app. TV air dates do not confirm India streaming.</string>
 </resources>
