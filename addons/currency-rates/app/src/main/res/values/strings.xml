@@ -1,0 +1,3 @@
+<resources>
+    <string name="overlay_description">Shows USD and EUR rates and Chennai 22K gold for 8 grams below the Home controls. Observes app window changes to hide outside Home. Does not read screen contents or intercept remote keys. Fetches rates from Currencylayer and Golden Chennai while Home is visible.</string>
+</resources>
