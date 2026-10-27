@@ -69,55 +69,56 @@ public final class HomeOverlayService extends AccessibilityService {
         home = true;
         if (panel == null) {
             panel = new LinearLayout(this);
-            panel.setOrientation(LinearLayout.VERTICAL);
-            panel.setPadding(dp(20), compact(17), dp(20), compact(14));
+            panel.setOrientation(LinearLayout.HORIZONTAL);
+            panel.setGravity(Gravity.CENTER_VERTICAL);
+            panel.setPadding(dp(10), dp(10), dp(10), dp(10));
             panel.setImportantForAccessibility(android.view.View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
             GradientDrawable background = new GradientDrawable();
             background.setColor(0x991c1b22);
-            background.setCornerRadius(dp(24));
+            background.setCornerRadius(dp(18));
             background.setStroke(dp(1), 0x26ffffff);
             panel.setBackground(background);
 
+            LinearLayout currencies = new LinearLayout(this);
+            currencies.setOrientation(LinearLayout.VERTICAL);
+            panel.addView(currencies, new LinearLayout.LayoutParams(0, -2, 1.7f));
             LinearLayout quotes = new LinearLayout(this);
-            quotes.setGravity(Gravity.CENTER_VERTICAL);
             usdValue = quote(quotes, "USD / INR");
+            eurValue = quote(quotes, "EUR / INR");
+            currencies.addView(quotes);
+            date = line("UPDATING RATES", 9, 0x99ffffff);
+            date.setSingleLine(true);
+            date.setLetterSpacing(0f);
+            LinearLayout.LayoutParams footer = new LinearLayout.LayoutParams(-1, -2);
+            footer.topMargin = compact(8);
+            currencies.addView(date, footer);
+
             android.view.View divider = new android.view.View(this);
             divider.setBackgroundColor(0x26ffffff);
-            LinearLayout.LayoutParams rule = new LinearLayout.LayoutParams(dp(1), compact(37));
-            rule.setMargins(dp(14), 0, dp(17), 0);
-            quotes.addView(divider, rule);
-            eurValue = quote(quotes, "EUR / INR");
-            panel.addView(quotes);
-            date = line("UPDATING RATES", 9, 0x99ffffff);
-            date.setLetterSpacing(0.12f);
-            LinearLayout.LayoutParams footer = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-            footer.topMargin = compact(11);
-            panel.addView(date, footer);
-            android.view.View separator = new android.view.View(this);
-            separator.setBackgroundColor(0x26ffffff);
-            LinearLayout.LayoutParams separatorLayout = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, dp(1));
-            separatorLayout.setMargins(0, compact(14), 0, compact(14));
-            panel.addView(separator, separatorLayout);
-            TextView goldLabel = line("22K GOLD · CHENNAI · 8G", 10, 0xb3ffffff);
+            LinearLayout.LayoutParams rule = new LinearLayout.LayoutParams(dp(1), dp(42));
+            rule.setMargins(dp(6), 0, dp(8), 0);
+            panel.addView(divider, rule);
+            LinearLayout gold = new LinearLayout(this);
+            gold.setOrientation(LinearLayout.VERTICAL);
+            panel.addView(gold, new LinearLayout.LayoutParams(0, -2, 1.1f));
+            TextView goldLabel = line("22K GOLD · 8G", 10, 0xb3ffffff);
             goldLabel.setLetterSpacing(0.08f);
-            panel.addView(goldLabel);
-            goldValue = line("—", 25, 0xf2ffffff);
+            gold.addView(goldLabel);
+            goldValue = line("—", 24, 0xf2ffffff);
             goldValue.setTypeface(Typeface.create("sans-serif-light", Typeface.NORMAL));
             goldValue.setFontFeatureSettings("tnum");
-            LinearLayout.LayoutParams goldAmount = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-            goldAmount.topMargin = compact(4);
-            panel.addView(goldValue, goldAmount);
-            goldDate = line("UPDATING GOLD", 9, 0x99ffffff);
-            goldDate.setLetterSpacing(0.06f);
-            LinearLayout.LayoutParams goldFooter = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            goldValue.setSingleLine(true);
+            LinearLayout.LayoutParams goldAmount = new LinearLayout.LayoutParams(-1, -2);
+            goldAmount.topMargin = compact(3);
+            gold.addView(goldValue, goldAmount);
+            goldDate = line("CHENNAI · UPDATING", 9, 0x99ffffff);
+            goldDate.setSingleLine(true);
+            goldDate.setLetterSpacing(0.03f);
+            LinearLayout.LayoutParams goldFooter = new LinearLayout.LayoutParams(-1, -2);
             goldFooter.topMargin = compact(8);
-            panel.addView(goldDate, goldFooter);
+            gold.addView(goldDate, goldFooter);
             WindowManager.LayoutParams layout = new WindowManager.LayoutParams(
-                dp(260), WindowManager.LayoutParams.WRAP_CONTENT,
+                dp(272), dp(74),
                 WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
                     | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
@@ -125,7 +126,7 @@ public final class HomeOverlayService extends AccessibilityService {
                 PixelFormat.TRANSLUCENT);
             layout.gravity = Gravity.TOP | Gravity.RIGHT;
             layout.x = dp(56);
-            layout.y = dp(116);
+            layout.y = dp(26);
             try { windows.addView(panel, layout); }
             catch (RuntimeException error) { panel = null; home = false; return; }
         }
@@ -141,7 +142,7 @@ public final class HomeOverlayService extends AccessibilityService {
         TextView currency = line(label, 10, 0xb3ffffff);
         currency.setLetterSpacing(0.12f);
         column.addView(currency);
-        TextView value = line("—", 25, 0xf2ffffff);
+        TextView value = line("—", 24, 0xf2ffffff);
         value.setTypeface(Typeface.create("sans-serif-light", Typeface.NORMAL));
         value.setSingleLine(true);
         value.setFontFeatureSettings("tnum");
@@ -168,7 +169,7 @@ public final class HomeOverlayService extends AccessibilityService {
             RatesData data = new RatesData(cache.getString("currencylayer_result", ""));
             usdValue.setText(String.format(Locale.US, "%,.2f", data.usd));
             eurValue.setText(String.format(Locale.US, "%,.2f", data.eur));
-            date.setText(data.date.toUpperCase(Locale.ENGLISH) + " IST · " + (failed ? "SAVED" : "CURRENCYLAYER"));
+            date.setText(data.date.toUpperCase(Locale.ENGLISH) + " IST · " + (failed ? "SAVED" : "FX"));
         } catch (Exception ignored) {
             usdValue.setText("—");
             eurValue.setText("—");
@@ -183,7 +184,7 @@ public final class HomeOverlayService extends AccessibilityService {
             goldValue.setText("₹" + java.text.NumberFormat.getIntegerInstance(new Locale("en", "IN")).format(data.eightGrams));
             String day = java.time.LocalDate.parse(data.date).format(
                 java.time.format.DateTimeFormatter.ofPattern("dd MMM", Locale.ENGLISH)).toUpperCase(Locale.ENGLISH);
-            goldDate.setText(day + " · GOLDEN CHENNAI" + (failed ? " · SAVED" : ""));
+            goldDate.setText("CHENNAI · " + day + (failed ? " · SAVED" : ""));
         } catch (Exception ignored) {
             goldValue.setText("—");
             goldDate.setText(failed ? "GOLD UNAVAILABLE" : "UPDATING GOLD");

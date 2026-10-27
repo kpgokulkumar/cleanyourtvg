@@ -2,8 +2,8 @@
 
 A small Android TV module card that opens USD → INR and EUR → INR reference rates,
 plus the price of 8 grams of 22K gold in Chennai.
-The Home card opens the full rates screen. An optional Home-only overlay shows both
-rates directly beneath the brightness and Settings icons. Use the remote's OK button
+The Home card opens the full rates screen. An optional Home-only overlay shows the currencies and gold in a horizontal panel
+at the top-right, aligned with the greeting and clock. Use the remote's OK button
 on **Refresh rates** to update. Back returns to Home.
 
 Currency rates come from [Currencylayer](https://currencylayer.com/), using its HTTPS
@@ -20,7 +20,7 @@ visible with their original timestamp and an update-unavailable message.
 Gold uses the public [Golden Chennai page](https://rates.goldenchennai.com/gold-rate/chennai-gold-rate-today/).
 The app reads the dated Chennai table's explicitly labelled 22K per-gram column and
 multiplies it by 8 using decimal arithmetic. The overlay shows purity, city, weight,
-source and the gold quote's own date, separately from the currency date. This is an
+the gold quote's own date (source details are in the full-screen card), separately from the currency date. This is an
 indicative metal value; a jeweller's final bill can include taxes and making charges.
 
 No API key is needed. The page is fetched over HTTPS, with a 512 KB response limit.
@@ -34,10 +34,12 @@ Open **Currency Rates → Home overlay settings**, then enable **Currency Rates 
 Overlay** in Android Accessibility and accept Android's confirmation. Press Home to
 show the overlay. Disable that service in the same settings to remove it.
 
-The panel is non-interactive and never takes remote focus. It is positioned 56 dp
-from the right and 116 dp from the top for the tested TV. A compact translucent charcoal panel, rounded corners, white
-typography and two separated currency columns match the Home controls. Text and
-vertical spacing use a 75% scale for a shorter panel; width and anchor stay fixed. The overlay hides when
+The panel is non-interactive and never takes remote focus. A horizontal 272 × 74 dp
+panel is anchored 56 dp from the right and 26 dp from the top, aligned with the
+Home greeting and clock. USD/INR and EUR/INR sit side by side, with a shared provider
+timestamp; a divided third section shows Chennai 22K gold for 8 grams and its own date.
+The translucent charcoal finish and light typography match the Home pills.
+The overlay hides when
 another app or a launcher dialog becomes active, and when the screen turns off.
 Android binds the service after it is enabled; no boot receiver is required.
 
@@ -106,7 +108,7 @@ with file permissions `600`; never commit it or include it in screenshots.
 
 MiTV-AXSO2, Android 9, firmware PI.4802 release-keys. Verified installation,
 Home card discovery and display, HTTPS rate loading, and the dated rate screen.
-Verified the enabled overlay beneath the Home controls, hiding when the rates app
+Verified the enabled horizontal overlay beside the Home clock, hiding when the rates app
 opens, returning on Home, and D-pad navigation passing through. Verified the dated Chennai 22K quote loads on the TV and that 8 grams is
 calculated from the per-gram rate. Verified authenticated Currencylayer loading and
 provider quote timestamps in IST on the TV. Local screenshots are kept in the ignored `shots/` folder.

@@ -210,6 +210,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private boolean reducedMotion;
     /** config.xml dock_row: the first row is a separate dock (band, parked low, top shelf) rather than plain grid. */
     private boolean dockRow;
+    /** home_layout "lounge": the artwork with the control cluster at the bottom right; the grid is not shown. */
+    private LoungeHome lounge;
     /** The highlight springs past its target (config.xml, focus_overshoot); false goes straight there. */
     private boolean focusOvershoot;
     /** Festive skin from the theme (see Festival); applied while it is active today. */
@@ -404,7 +406,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         heroMeta = findViewById(R.id.heroMeta);
         heroDots = findViewById(R.id.heroDots);
         heroArt = findViewById(R.id.heroArt);
-        streamingBackdrop = StreamingBackdrop.create(this, root);
+        boolean loungeLayout = LoungeHome.LAYOUT.equals(cfg.homeLayout);
+        streamingBackdrop = StreamingBackdrop.create(this, root, loungeLayout);
         cinematic = cfg.cinematicHome && streamingBackdrop == null;
         glowStyle = cfg.glowStyle;
         if (cinematic) setUpCinematicShelf();
@@ -721,8 +724,34 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                     .removeCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)
                     .build(), vpnCallback);
         }
+        if (loungeLayout) setUpLounge(cfg);
         // Not after recreate(): the launch intent survives it and would open the settings again.
         if (savedInstanceState == null && !openLauncherSettingsIfAsked(getIntent())) openInputsIfAsked(getIntent());
+    }
+
+    /**
+     * home_layout "lounge": the grid, the shelf and the glass stay out of sight (the adapter still keeps the app list
+     * for module cards and the library), and the top bar's buttons move into LoungeHome's control row.
+     */
+    private void setUpLounge(Config cfg) {
+        grid.setVisibility(View.GONE);
+        grid.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
+        for (View v : new View[]{hero, heroArt, ambient, glass, findViewById(R.id.heroScrim), btnReorder, btnLibraryTop}) {
+            v.setVisibility(View.GONE);
+        }
+        View[] controls = {btnInputs, btnWifi, findViewById(R.id.btnPlanner), findViewById(R.id.btnBacklight),
+                findViewById(R.id.btnSettings)};
+        lounge = new LoungeHome(this, root, controls, cfg.dockApps, animations && !reducedMotion, new LoungeHome.Host() {
+            @Override public void openLibrary() {
+                lounge.hideCaptions();
+                onLibraryRequested();
+            }
+
+            @Override public void onAppFocused(String pkg) {
+                if (streamingBackdrop != null) streamingBackdrop.focus(pkg);
+            }
+        });
+        root.post(() -> lounge.focusApp(-1));
     }
 
     /**
@@ -810,7 +839,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         }
         updateClockVisibility();
         tileRefresh.onStart();
-        if (streamingBackdrop != null) streamingBackdrop.focus(lastFocused < COLUMNS ? adapter.packageAt(lastFocused) : null);
+        if (streamingBackdrop != null) {
+            streamingBackdrop.focus(lounge != null ? lounge.selectedPackage()
+                    : lastFocused < COLUMNS ? adapter.packageAt(lastFocused) : null);
+        }
     }
 
     @Override
@@ -830,6 +862,13 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         }
         restartIdleClock();
         promptsPaused = false;
+        if (lounge != null) {
+            lounge.wake();
+            // Back from an app or a settings screen: focus is usually still where it was; only fill a gap.
+            root.post(() -> {
+                if (!lounge.hasFocus() && openPopup == null && appLibrary == null && cardPrompt == null) lounge.focusApp(-1);
+            });
+        }
         if (grid.getAdapter() == null) grid.setAdapter(adapter);   // dropped by onTrimMemory
         switch (tileRefresh.onResume(packagesChangedSinceRebuild())) {
             case REBUILD:
@@ -916,6 +955,13 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
      *                 on a return to the same tiles it would only mark a change that didn't happen.
      */
     private void reloadApps(boolean animate, boolean rebuild, boolean entrance) {
+        if (lounge != null) {
+            // No grid on screen: refresh the app list behind the library and the cards, nothing to refocus.
+            if (rebuild) reloadTiles();
+            tilesReady = true;
+            showCardPrompt();
+            return;
+        }
         cancelPendingFocusScroll();
         RecyclerView.ViewHolder footer = grid.findViewHolderForAdapterPosition(adapter.appCount());
         final boolean restoreLibrary = adapter.isLibraryAt(adapter.appCount()) && footer != null
@@ -1017,6 +1063,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     public void onUserInteraction() {
         super.onUserInteraction();
         restartIdleClock();
+        if (lounge != null) lounge.wake();
     }
 
     private void restartIdleClock() {
@@ -1028,6 +1075,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     protected void onPause() {
         super.onPause();
         root.removeCallbacks(showIdleClock);
+        if (lounge != null) lounge.pause();
         endReorder();   // Home or another app while reordering keeps the order so far
         wallpaperPlayer.stop();
         stopAmbientAnimation();
@@ -1193,6 +1241,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     /** The reorder button: turns the mode on (focus goes back to the last tile), or off again. */
     private void toggleReorder() {
+        if (lounge != null) return;   // the lounge dock follows dock_apps; there are no tiles to move
         if (reordering) {
             endReorder();
             return;
@@ -1220,6 +1269,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     /** Edit dock (Settings menu): focus goes to the first dock place, which OK then chooses. */
     private void startDockEdit() {
+        if (lounge != null) return;
         if (reordering) endReorder();
         if (!beginReorder()) return;
         dockEditing = true;
@@ -1446,7 +1496,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     @Override
     public void onBackPressed() {
-        // Home screen: Back goes nowhere.
+        // Home screen: Back goes nowhere, except back to the dock from the lounge's controls.
+        if (lounge != null) lounge.focusApp(-1);
     }
 
     // ---- glass highlight -------------------------------------------------------------------------
@@ -1465,17 +1516,22 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 btnLibraryTop.requestFocus();
                 return;
             }
+            if (lounge != null) {
+                lounge.focusApp(-1);
+                return;
+            }
             libraryFocusPending = true;
             grid.post(() -> {
                 if (libraryFocusPending && appLibrary == null && hasWindowFocus() && !isFinishing()) focusLibrary();
             });
-        });
+        }, lounge != null, hiddenApps);
         openPopup = appLibrary.popup;
         appLibrary.show();
     }
 
     @Override
     public void onTileFocused(int position, View card) {
+        if (lounge != null) return;   // the grid is hidden and takes no focus
         lastFocused = position;
         lastFocusedKey = adapter.keyAt(position);
         // Focus restored before the first layout (cold start): the tile has no size yet, and the glass
@@ -2182,6 +2238,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     }
 
     private void focusTile(int position) {
+        if (lounge != null) {
+            if (openPopup == null && cardPrompt == null) lounge.focusApp(position);
+            return;
+        }
         libraryFocusPending = false;
         cancelPendingFocusScroll();
         if (adapter.appCount() == 0) {
@@ -2255,8 +2315,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             if (hour < 5) res = R.string.good_night;
             else if (hour < 12) res = R.string.good_morning;
             else if (hour < 17) res = R.string.good_afternoon;
-            else if (hour < 22) res = R.string.good_evening;
-            else res = R.string.good_night;
+            else res = R.string.good_evening;
         }
         String festiveGreeting = festive ? festival.greetingText(getResources()) : "";
         if (!festiveGreeting.isEmpty()) {
@@ -2833,10 +2892,23 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     /** Drop in: fade and unfold from the top edge, hanging under the anchor pill. */
     private void dropIn(PopupWindow popup, View panel, View anchor, int gravity) {
         panel.setAlpha(0f);
-        panel.setPivotY(0f);
         panel.setScaleY(0.92f);
-        panel.setTranslationY(-8 * density);
-        popup.showAsDropDown(anchor, 0, (int) (10 * density), gravity);
+        int[] at = new int[2];
+        anchor.getLocationOnScreen(at);
+        if (at[1] > root.getHeight() / 2) {
+            // The lounge's controls sit at the bottom: rise above the button instead of hanging under it.
+            panel.measure(View.MeasureSpec.makeMeasureSpec(popup.getWidth(), View.MeasureSpec.EXACTLY),
+                    View.MeasureSpec.UNSPECIFIED);
+            int h = panel.getMeasuredHeight();
+            if (lounge != null) lounge.hideCaptions();
+            panel.setPivotY(h);
+            panel.setTranslationY(8 * density);
+            popup.showAsDropDown(anchor, 0, -(anchor.getHeight() + h + (int) (12 * density)), gravity);
+        } else {
+            panel.setPivotY(0f);
+            panel.setTranslationY(-8 * density);
+            popup.showAsDropDown(anchor, 0, (int) (10 * density), gravity);
+        }
         panel.animate().alpha(1f).scaleY(1f).translationY(0f).setDuration(reducedMotion ? Motion.REDUCED_MS : 220)
                 .setInterpolator(new android.view.animation.DecelerateInterpolator(1.6f)).start();
     }
@@ -2914,8 +2986,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         if (!launcherSettingsButton) addSettingsMenuRow(rows, popup, R.string.launcher_settings, () -> startActivityForResult(
                 new Intent(this, LauncherSettingsActivity.class), LAUNCHER_SETTINGS_REQUEST));
         if (moduleCards) addSettingsMenuRow(rows, popup, R.string.module_cards, this::showModuleCards);
-        if (dockRow) addSettingsMenuRow(rows, popup, R.string.dock_edit, this::startDockEdit);
-        addSettingsMenuRow(rows, popup, R.string.reorder, this::toggleReorder);
+        if (dockRow && lounge == null) addSettingsMenuRow(rows, popup, R.string.dock_edit, this::startDockEdit);
+        if (lounge == null) addSettingsMenuRow(rows, popup, R.string.reorder, this::toggleReorder);
         if (streamingBackdrop != null) addSettingsMenuRow(rows, popup, R.string.streaming_credits_title, streamingBackdrop::credits);
         panel.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
         popup.setWidth(Math.max((int) (200 * density), panel.getMeasuredWidth()));

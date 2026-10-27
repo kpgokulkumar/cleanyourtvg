@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The launcher only talks to TMDB (StreamingBackdrop), and only over HTTPS. No cleartext anywhere, and only the
+     system's certificate authorities: a certificate added under Settings > Security cannot read the traffic. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

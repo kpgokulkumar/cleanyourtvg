@@ -102,6 +102,10 @@ final class AppLibraryDialog {
     private float scrollOffset;
     private boolean highlightShown;
     private final int catalogWidth;
+    /** home_layout "lounge": a sheet along the bottom edge, recently opened apps first, OK opens. */
+    private final boolean lounge;
+    /** hidden_apps (config.xml or the theme): left out of the library as they are left off Home. */
+    private final Set<String> hidden;
 
     private void stopHighlight() {
         if (spring != null) spring.cancel();
@@ -143,7 +147,14 @@ final class AppLibraryDialog {
     }
 
     AppLibraryDialog(Activity activity, boolean animations, boolean reducedMotion, Predicate<String> onHome, Runnable changed, Runnable dismissed) {
+        this(activity, animations, reducedMotion, onHome, changed, dismissed, false, java.util.Collections.emptySet());
+    }
+
+    AppLibraryDialog(Activity activity, boolean animations, boolean reducedMotion, Predicate<String> onHome, Runnable changed,
+                     Runnable dismissed, boolean lounge, Set<String> hidden) {
         this.activity = activity;
+        this.lounge = lounge;
+        this.hidden = hidden;
         this.animations = animations;
         this.rtl = activity.getResources().getBoolean(R.bool.rtl_app_grid);
         this.reducedMotion = reducedMotion;
@@ -156,10 +167,20 @@ final class AppLibraryDialog {
         panel.setOrientation(LinearLayout.VERTICAL);
         panel.setPadding(dp(12), dp(8), dp(12), dp(12));
         panel.setBackgroundResource(R.drawable.glass_panel);
+        if (lounge) {
+            // Solid: over moving artwork, anything see-through lets the title behind read through the apps.
+            GradientDrawable sheet = new GradientDrawable();
+            sheet.setColor(0xFF111115);
+            sheet.setStroke(Math.max(1, dp(1)), activity.getColor(R.color.hairline));
+            sheet.setCornerRadius(activity.getResources().getDimension(R.dimen.radius_panel));
+            panel.setBackground(sheet);
+        }
         View decor = activity.getWindow().getDecorView();
-        catalogWidth = Math.min(dp(800), Math.max(dp(200), decor.getWidth() - dp(64)));
+        int side = activity.getResources().getDimensionPixelSize(R.dimen.edge_side);
+        catalogWidth = lounge ? Math.max(dp(200), decor.getWidth() - 2 * side)
+                : Math.min(dp(800), Math.max(dp(200), decor.getWidth() - dp(64)));
         int width = catalogWidth;
-        int height = dp(280);
+        int height = catalogHeight();
         popup = new PopupWindow(panel, width, height, true);
         popup.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         popup.setOutsideTouchable(true);
@@ -187,17 +208,31 @@ final class AppLibraryDialog {
         load(true);
     }
 
+    private int catalogHeight() {
+        return dp(lounge ? 236 : 280);
+    }
+
     private void reveal() {
-        popup.showAtLocation(activity.getWindow().getDecorView(), Gravity.CENTER, 0, 0);
+        if (lounge) {
+            // Rises from the bottom edge, where Down came from, over the dock.
+            popup.showAtLocation(activity.getWindow().getDecorView(), Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL, 0,
+                    activity.getResources().getDimensionPixelSize(R.dimen.edge_bottom) - dp(16));
+        } else {
+            popup.showAtLocation(activity.getWindow().getDecorView(), Gravity.CENTER, 0, 0);
+        }
         View container = panel.getRootView();
         if (container.getLayoutParams() instanceof WindowManager.LayoutParams) {
             WindowManager.LayoutParams params = (WindowManager.LayoutParams) container.getLayoutParams();
             params.flags |= WindowManager.LayoutParams.FLAG_DIM_BEHIND;
-            params.dimAmount = 0.55f;
+            params.dimAmount = lounge ? 0.7f : 0.55f;
             activity.getWindowManager().updateViewLayout(container, params);
         }
         panel.setAlpha(0f);
-        panel.animate().alpha(1f).setDuration(reducedMotion ? Motion.REDUCED_MS : 180).start();
+        if (lounge && !reducedMotion && animations) {
+            panel.setTranslationY(dp(28));
+            panel.animate().translationY(0f).setInterpolator(new android.view.animation.DecelerateInterpolator(2f));
+        }
+        panel.animate().alpha(1f).setDuration(reducedMotion ? Motion.REDUCED_MS : 220).start();
     }
 
     /** Called by the activity's existing package receiver; an uninstall cannot leave a stale action. */
@@ -226,7 +261,7 @@ final class AppLibraryDialog {
                     if (info.activityInfo == null || !info.activityInfo.exported) continue;
                     String pkg = info.activityInfo.packageName;
                     if (Intent.CATEGORY_LEANBACK_LAUNCHER.equals(category)) tv.add(pkg);
-                    if (!pkg.equals(self) && !unique.containsKey(pkg)) unique.put(pkg, info);
+                    if (!pkg.equals(self) && !hidden.contains(pkg) && !unique.containsKey(pkg)) unique.put(pkg, info);
                 }
             }
             Map<String, String> names = new HashMap<>();
@@ -273,6 +308,23 @@ final class AppLibraryDialog {
         }
         catalogTime = System.currentTimeMillis();
         Collator collator = Collator.getInstance();
+        if (lounge) {
+            // What you opened last comes first; the rest in name order.
+            Map<String, Long> opened = new HashMap<>();
+            for (ResolveInfo app : apps) {
+                String pkg = app.activityInfo.packageName;
+                opened.put(pkg, LastOpened.get(activity, pkg));
+            }
+            apps.sort((a, b) -> {
+                String pa = a.activityInfo.packageName, pb = b.activityInfo.packageName;
+                int byUse = Long.compare(opened.get(pb), opened.get(pa));
+                if (byUse != 0) return byUse;
+                int byLabel = collator.compare(label(a), label(b));
+                return byLabel != 0 ? byLabel : pa.compareTo(pb);
+            });
+            showCatalog();
+            return;
+        }
         apps.sort((a, b) -> {
             String pa = a.activityInfo.packageName, pb = b.activityInfo.packageName;
             int priority = LibraryApps.comparePriority(home.get(pa), installTimes.get(pa),
@@ -333,12 +385,13 @@ final class AppLibraryDialog {
 
     private void showCatalog() {
         stopHighlight();
-        resize(catalogWidth, dp(280));
+        resize(catalogWidth, catalogHeight());
         panel.removeAllViews();
         LinearLayout header = new LinearLayout(activity);
         header.setGravity(Gravity.CENTER_VERTICAL);
         header.setPadding(dp(12), dp(4), dp(8), dp(4));
-        TextView title = text(activity.getString(R.string.app_library), 22, Color.WHITE);
+        TextView title = text(activity.getString(R.string.app_library), lounge ? 20 : 22, Color.WHITE);
+        if (lounge) title.setTypeface(UiFont.get(activity, R.string.font_light));
         header.addView(title, new LinearLayout.LayoutParams(0, dp(36), 1));
         title.setGravity(Gravity.CENTER_VERTICAL);
         title.setSingleLine(true);
@@ -353,6 +406,8 @@ final class AppLibraryDialog {
         instructions.setEllipsize(TextUtils.TruncateAt.END);
         instructions.setPadding(dp(12), 0, dp(12), dp(6));
         panel.addView(instructions, new LinearLayout.LayoutParams(-1, dp(26)));
+        // The lounge sheet says nothing it doesn't need to: OK opens, holding OK is there for those who look.
+        if (lounge) instructions.setVisibility(View.GONE);
         panel.setFocusableInTouchMode(apps.isEmpty());
         if (apps.isEmpty()) {
             instructions.setVisibility(View.GONE);
@@ -488,7 +543,7 @@ final class AppLibraryDialog {
         });
         addAction(rows, R.string.library_open, () -> open(app));
         boolean home = onHome.test(pkg);
-        addAction(rows, home ? R.string.library_remove_shortcut : R.string.library_add_home,
+        if (!lounge) addAction(rows, home ? R.string.library_remove_shortcut : R.string.library_add_home,
                 () -> changeHome(app, !home));
         addAction(rows, R.string.library_app_info, () -> {
             close();
@@ -558,7 +613,7 @@ final class AppLibraryDialog {
     private final class Catalog extends RecyclerView.Adapter<Row> {
         @NonNull @Override public Row onCreateViewHolder(@NonNull ViewGroup parent, int type) {
             FrameLayout row = new FrameLayout(activity);
-            RecyclerView.LayoutParams params = new RecyclerView.LayoutParams(dp(132), dp(170));
+            RecyclerView.LayoutParams params = new RecyclerView.LayoutParams(dp(lounge ? 116 : 132), dp(lounge ? 140 : 170));
             params.setMargins(dp(6), dp(2), dp(6), dp(2));
             row.setLayoutParams(params);
             row.setPadding(dp(10), dp(12), dp(10), dp(10));
@@ -571,8 +626,9 @@ final class AppLibraryDialog {
             ImageView icon = new ImageView(activity);
             icon.setId(R.id.icon);
             icon.setScaleType(ImageView.ScaleType.FIT_CENTER);
-            content.addView(icon, new LinearLayout.LayoutParams(dp(60), dp(60)));
-            TextView name = text("", 15, Color.WHITE);
+            content.addView(icon, new LinearLayout.LayoutParams(dp(lounge ? 56 : 60), dp(lounge ? 56 : 60)));
+            TextView name = text("", lounge ? 13 : 15, Color.WHITE);
+            if (lounge) name.setTypeface(UiFont.get(activity, R.string.font_regular));
             name.setId(R.id.title);
             name.setGravity(Gravity.CENTER);
             name.setMaxLines(2);
@@ -602,16 +658,17 @@ final class AppLibraryDialog {
             boolean home = onHome.test(pkg);
             boolean recent = LibraryApps.recent(installTimes.getOrDefault(pkg, 0L), catalogTime);
             status.setText(home ? R.string.library_on_home : recent ? R.string.library_recent : R.string.library_add_home);
-            status.setVisibility(View.VISIBLE);
-            holder.itemView.setBackground(surface(home ? 0x1475BBA4 : 0x0CFFFFFF, 18));
+            status.setVisibility(lounge ? View.GONE : View.VISIBLE);
+            // Lounge: no box at rest; the glass highlight is the only shape on the shelf.
+            holder.itemView.setBackground(lounge ? null : surface(home ? 0x1475BBA4 : 0x0CFFFFFF, 18));
             View check = holder.itemView.findViewById(R.id.dot);
             check.getLayoutParams().width = dp(home ? 18 : 8);
             check.getLayoutParams().height = dp(home ? 18 : 8);
             if (home) check.setBackgroundResource(R.drawable.library_check);
             else check.setBackground(surface(0xFF70D9A0, 8));
-            check.setVisibility(home || recent ? View.VISIBLE : View.GONE);
+            check.setVisibility(!lounge && (home || recent) ? View.VISIBLE : View.GONE);
             holder.itemView.setOnClickListener(v -> {
-                if (onHome.test(pkg)) open(app);
+                if (lounge || onHome.test(pkg)) open(app);
                 else changeHome(app, true);
             });
             holder.itemView.setOnLongClickListener(v -> { showActions(app, v); return true; });
@@ -627,6 +684,11 @@ final class AppLibraryDialog {
             });
             holder.itemView.setOnKeyListener((v, key, event) -> {
                 int index = holder.getBindingAdapterPosition();
+                if (lounge && key == KeyEvent.KEYCODE_DPAD_UP) {
+                    // Up goes back to the dock the sheet rose over.
+                    if (event.getAction() == KeyEvent.ACTION_UP) close();
+                    return true;
+                }
                 return event.getAction() == KeyEvent.ACTION_DOWN && (key == KeyEvent.KEYCODE_DPAD_UP
                         || key == KeyEvent.KEYCODE_DPAD_DOWN
                         || (rtl ? key == KeyEvent.KEYCODE_DPAD_RIGHT : key == KeyEvent.KEYCODE_DPAD_LEFT) && index == 0

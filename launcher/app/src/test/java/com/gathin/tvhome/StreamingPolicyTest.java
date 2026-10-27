@@ -32,4 +32,31 @@ public class StreamingPolicyTest {
         assertFalse(StreamingPolicy.imagePath("/../art.jpg"));
         assertFalse(StreamingPolicy.imagePath("null"));
     }
+    @Test public void imagesComeOnlyFromTmdbAtTheBackdropSize() {
+        assertEquals("https://image.tmdb.org/t/p/w1280/abc123.jpg", StreamingPolicy.imageUrl("/abc123.jpg"));
+        try {
+            StreamingPolicy.imageUrl("//example.com/art.jpg");
+            fail("an unchecked path must not become a URL");
+        } catch (IllegalArgumentException expected) { }
+    }
+    @Test public void eyebrowLeavesOutWhatIsUnknown() {
+        assertEquals("NETFLIX  \u00B7  Series  \u00B7  2026", StreamingPolicy.eyebrow("NETFLIX", "Series", "2026"));
+        assertEquals("NETFLIX  \u00B7  2026", StreamingPolicy.eyebrow("NETFLIX", "", "2026"));
+        assertEquals("Film", StreamingPolicy.eyebrow(null, "Film", null));
+    }
+    @Test public void pruneKeepsTheNewestFilesWithinBudget() throws Exception {
+        java.io.File dir = java.nio.file.Files.createTempDirectory("tmdb").toFile();
+        java.io.File[] files = new java.io.File[4];
+        for (int i = 0; i < files.length; i++) {
+            files[i] = new java.io.File(dir, i + ".jpg");
+            java.nio.file.Files.write(files[i].toPath(), new byte[100]);
+            assertTrue(files[i].setLastModified(1_000_000L * (i + 1)));
+        }
+        assertEquals(2, StreamingPolicy.prune(dir.listFiles(), 250));
+        assertFalse(files[0].exists());
+        assertFalse(files[1].exists());
+        assertTrue(files[2].exists());
+        assertTrue(files[3].exists());
+        assertEquals(0, StreamingPolicy.prune(null, 0));
+    }
 }

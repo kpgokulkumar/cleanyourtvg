@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The lounge design: one set of colours, sizes and type steps for Home, the library, the menus and the
+     settings screens. Change a value here and every screen follows. -->
+<resources>
+    <!-- Ink: white at fixed steps, so text keeps one hierarchy over any artwork. -->
+    <color name="ink_primary">#FFFFFFFF</color>
+    <color name="ink_secondary">#B8FFFFFF</color>
+    <color name="ink_tertiary">#80FFFFFF</color>
+    <color name="ink_quiet">#4DFFFFFF</color>
+    <color name="ink_on_focus">#FF0B0B0F</color>
+
+    <!-- Surfaces: dark glass over the artwork, and the one white focus. -->
+    <color name="surface_glass">#B314141A</color>
+    <color name="surface_glass_strong">#E614141A</color>
+    <color name="surface_raised">#14FFFFFF</color>
+    <color name="hairline">#21FFFFFF</color>
+    <color name="focus_fill">#F7FFFFFF</color>
+    <color name="positive">#FF34C759</color>
+
+    <!-- Margins: Home's safe area. Everything on Home lines up on these. -->
+    <dimen name="edge_side">56dp</dimen>
+    <dimen name="edge_top">32dp</dimen>
+    <dimen name="edge_bottom">40dp</dimen>
+
+    <!-- Lounge cluster: as wide as the Currency Rates card above it, so the right column has one edge. -->
+    <dimen name="cluster_width">272dp</dimen>
+    <dimen name="control_size">42dp</dimen>
+    <dimen name="app_size">42dp</dimen>
+    <dimen name="cluster_row_gap">16dp</dimen>
+
+    <dimen name="radius_panel">22dp</dimen>
+    <dimen name="radius_row">14dp</dimen>
+
+    <!-- Type steps (sp). -->
+    <dimen name="type_caption">11sp</dimen>
+    <dimen name="type_body">13sp</dimen>
+    <dimen name="type_row">16sp</dimen>
+    <dimen name="type_title">30sp</dimen>
+</resources>

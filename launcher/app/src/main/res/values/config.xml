@@ -208,6 +208,12 @@
          so its corners are concentric with the tiles' and the spacing reads even. false (the default) keeps the fixed
          14dp above and below, up to 22dp at the sides and 26dp corners. Can also be set with "dock_even_padding": true in a theme's config.json. -->
     <bool name="dock_even_padding">false</bool>
+
+    <!-- Home's layout. "grid" (the default) is the dock over the app grid. "lounge" gives the screen to the artwork
+         (wallpaper or the streaming backdrop): the clock top left, and at the bottom right one row of round
+         controls over one row of round dock apps, the focused one named underneath. Down opens the app library.
+         Can also be set with "home_layout": "lounge" in a theme's config.json. -->
+    <string name="home_layout" translatable="false">grid</string>
     <!-- A reorder button (two arrows) in the top bar. Off by default: reordering is also in the Settings
          button's long-press menu, so it needs no extra button on screen. -->
     <bool name="reorder_button">false</bool>

@@ -77,10 +77,12 @@ public final class PlannerActivity extends Activity {
     private TextView text(String value, int size, int color) {
         TextView v = new TextView(this);
         v.setText(value); v.setTextSize(size); v.setTextColor(color);
+        v.setTypeface(UiFont.get(this, R.string.font_regular));
         return v;
     }
     private TextView button(String value, Runnable action) {
-        TextView v = text(value, 15, 0xFFFFFFFF);
+        TextView v = text(value, 14, 0xFFFFFFFF);
+        v.setTextColor(getColorStateList(R.color.row_text));
         v.setId(View.generateViewId());
         v.setFocusable(true); v.setClickable(true);
         v.setGravity(Gravity.CENTER_VERTICAL);
@@ -97,19 +99,20 @@ public final class PlannerActivity extends Activity {
     private void render() {
         LinearLayout page = column();
         page.setPadding(dp(32), dp(22), dp(32), dp(20));
-        page.setBackgroundColor(0xFF080E1B);
+        page.setBackgroundColor(0xFF0B0B0F);
         LinearLayout header = new LinearLayout(this);
         header.setGravity(Gravity.CENTER_VERTICAL);
         back = button(getString(R.string.planner_back), this::finish);
         header.addView(back);
-        TextView heading = text(getString(R.string.planner_title), 30, 0xFFFFFFFF);
+        TextView heading = text(getString(R.string.planner_title), 30, getColor(R.color.ink_primary));
+        heading.setTypeface(UiFont.get(this, R.string.font_light));
         heading.setPadding(dp(20), 0, 0, 0);
         header.addView(heading);
         TextView undated = button(getString(R.string.release_unannounced), this::unannounced);
         LinearLayout.LayoutParams up = new LinearLayout.LayoutParams(-2, -2);
         up.leftMargin = dp(20); header.addView(undated, up);
         page.addView(header);
-        TextView hint = text(getString(R.string.planner_hint), 13, 0xFFADB9CC);
+        TextView hint = text(getString(R.string.planner_hint), 13, getColor(R.color.ink_tertiary));
         hint.setPadding(0, dp(10), 0, dp(20));
         page.addView(hint);
         LinearLayout board = new LinearLayout(this);
@@ -122,10 +125,16 @@ public final class PlannerActivity extends Activity {
             List<View> focus = new ArrayList<>(); targets.add(focus);
             LinearLayout lane = column();
             lane.setPadding(dp(5), dp(12), dp(5), dp(4));
-            lane.setBackgroundColor(d == today ? 0xFF15263B : 0xFF101A29);
+            android.graphics.drawable.GradientDrawable laneBg = new android.graphics.drawable.GradientDrawable();
+            laneBg.setColor(d == today ? 0x1FFFFFFF : 0x0DFFFFFF);
+            laneBg.setCornerRadius(getResources().getDimension(R.dimen.radius_row));
+            lane.setBackground(laneBg);
             LinearLayout.LayoutParams cell = new LinearLayout.LayoutParams(0, -1, 1);
             cell.setMargins(dp(3), 0, dp(3), 0); board.addView(lane, cell);
-            TextView label = text(days[d], 16, d == today ? 0xFF9ED9E8 : 0xFFE0E7F0);
+            TextView label = text(days[d], 11, getColor(d == today ? R.color.ink_primary : R.color.ink_tertiary));
+            label.setTypeface(UiFont.get(this, R.string.font_medium));
+            label.setLetterSpacing(0.2f);
+            label.setAllCaps(true);
             label.setGravity(Gravity.CENTER); label.setPadding(0, 0, 0, dp(12)); lane.addView(label);
             TextView add = button(getString(R.string.planner_add), () -> search(day));
             lane.addView(add); focus.add(add);
