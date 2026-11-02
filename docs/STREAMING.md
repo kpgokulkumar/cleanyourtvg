@@ -21,6 +21,32 @@ adult titles and titles without a backdrop, with at least 20 TMDB votes. This
 is **not** a date-added feed or a guarantee that your plan can play a title.
 Provider metadata can lag. A series with a new season may have an older first air date.
 
+## Change the YouTube wallpaper
+
+In the lounge layout the picture behind Home is `youtube-wallpaper.jpg` while the YouTube dock tile is
+focused (the theme's `wallpaper.jpg` sits underneath it). To change it:
+
+1. Make a JPEG of about 1920×1080 and under 300 KB (5 MB is the hard limit). Apply any EXIF rotation to the
+   pixels and drop the tag: a phone photo that looks upright on a Mac can be stored sideways, and the
+   launcher shows what is stored. With Pillow, `ImageOps.exif_transpose(im).convert("RGB").resize((1920, 1080))`
+   then `save(path, quality=62)` does both.
+2. Keep the old picture, then push the new one (`TV_HOST` is the TV's IP):
+
+   ```sh
+   export TV_HOST=<tv ip>
+   D=/sdcard/Android/data/com.gathin.tvhome/files
+   tools/venv/bin/python tools/b64push.py new.jpg /data/local/tmp/yt.jpg
+   tools/venv/bin/python tools/tv.py "cp $D/youtube-wallpaper.jpg $D/youtube-wallpaper.jpg.bak; cat /data/local/tmp/yt.jpg > $D/youtube-wallpaper.jpg; rm /data/local/tmp/yt.jpg"
+   ```
+
+   Write over the existing file with `cat >`, as above: a new file made by the shell can be unreadable to Home
+   on newer Android. Tested on Android 9 (Xiaomi MiTV-AXSO2).
+3. Home loads the picture when focus lands on the YouTube tile, so press Right then Left on the dock (or
+   Home) to see it. No restart is needed.
+
+To go back, copy `youtube-wallpaper.jpg.bak` over `youtube-wallpaper.jpg` the same way. Deleting the file
+leaves the tile with the normal theme. Personal photos stay out of Git.
+
 ## Enable
 
 Save your TMDB **API Read Access Token** in the ignored local file
