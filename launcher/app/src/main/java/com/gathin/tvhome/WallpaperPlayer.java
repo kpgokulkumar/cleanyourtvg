@@ -50,6 +50,8 @@ final class WallpaperPlayer {
     /** wallpaper_captions: the shown picture's name from wallpapers/captions.txt; null when off or there are none. */
     private final TextView caption;
     private final Map<String, String> names;
+    /** wallpaper_video: wallpaper.mp4 behind the picture; null when off. */
+    private final VideoWallpaper video;
 
     WallpaperPlayer(Context context, FrameLayout root, Config config) {
         this.root = root;
@@ -81,6 +83,8 @@ final class WallpaperPlayer {
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
             showFirst();
         }
+        video = config.wallpaperVideo == null ? null : new VideoWallpaper(context, root,
+                image.getParent() != null ? image : null, dimColor, config.wallpaperVideo);
     }
 
     /**
@@ -113,21 +117,29 @@ final class WallpaperPlayer {
 
     void start() {
         active = true;
+        if (video != null) video.start();
         update();
     }
 
     void stop() {
         active = false;
+        if (video != null) video.stop();
+    }
+
+    /** True while the video wallpaper is on screen in place of the picture. */
+    boolean videoPlaying() {
+        return video != null && video.playing();
     }
 
     void close() {
         active = false;
         closed = true;
+        if (video != null) video.close();
         decoder.shutdownNow();
     }
 
     void update() {
-        if (!active || closed || loading || files.isEmpty()) return;
+        if (!active || closed || loading || files.isEmpty() || videoPlaying()) return;
         String previous = preferences.getString("image", "");
         File selected = WallpaperRotation.find(files, previous);
         long changed = preferences.getLong("changed", 0);

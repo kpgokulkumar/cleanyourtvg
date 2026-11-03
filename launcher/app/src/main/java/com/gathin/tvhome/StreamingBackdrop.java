@@ -41,6 +41,8 @@ final class StreamingBackdrop {
 
     private final Activity activity;
     private final String token;
+    /** wallpaper_video is on: YouTube's focus leaves the video showing instead of youtube-wallpaper.jpg. */
+    private final boolean videoWallpaper;
     private final File cache;
     private final Handler ui = new Handler(Looper.getMainLooper());
     private final ThreadPoolExecutor worker = new ThreadPoolExecutor(1, 1, 10, TimeUnit.SECONDS,
@@ -59,7 +61,7 @@ final class StreamingBackdrop {
     private int slide;
     private Runnable rotate;
 
-    static StreamingBackdrop create(Activity activity, FrameLayout root, boolean lounge) {
+    static StreamingBackdrop create(Activity activity, FrameLayout root, boolean lounge, boolean videoWallpaper) {
         try {
             File imported = new File(activity.getExternalFilesDir(null), "tmdb-import.json");
             if (imported.isFile()) {
@@ -76,15 +78,16 @@ final class StreamingBackdrop {
                 Files.delete(imported.toPath());
             }
             String token = TmdbClient.token(activity);
-            return token == null ? null : new StreamingBackdrop(activity, root, token, lounge);
+            return token == null ? null : new StreamingBackdrop(activity, root, token, lounge, videoWallpaper);
         } catch (Exception e) {
             // Never log config contents, tokens or authenticated URLs.
             return null;
         }
     }
 
-    private StreamingBackdrop(Activity activity, FrameLayout root, String token, boolean lounge) {
+    private StreamingBackdrop(Activity activity, FrameLayout root, String token, boolean lounge, boolean videoWallpaper) {
         this.activity = activity;
+        this.videoWallpaper = videoWallpaper;
         this.token = token;
         cache = new File(activity.getCacheDir(), "tmdb");
         worker.allowCoreThreadTimeOut(true);
@@ -181,6 +184,10 @@ final class StreamingBackdrop {
         if (pending != null) ui.removeCallbacks(pending);
         worker.getQueue().clear();
         if ("com.google.android.youtube.tv".equals(pkg)) {
+            if (videoWallpaper) {
+                hideViews();
+                return;
+            }
             pending = () -> worker.execute(() -> loadWallpaper(request));
             ui.postDelayed(pending, SETTLE_MS);
             return;

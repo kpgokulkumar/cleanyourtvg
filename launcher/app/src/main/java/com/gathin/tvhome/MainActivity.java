@@ -407,7 +407,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         heroDots = findViewById(R.id.heroDots);
         heroArt = findViewById(R.id.heroArt);
         boolean loungeLayout = LoungeHome.LAYOUT.equals(cfg.homeLayout);
-        streamingBackdrop = StreamingBackdrop.create(this, root, loungeLayout);
+        streamingBackdrop = StreamingBackdrop.create(this, root, loungeLayout, cfg.wallpaperVideo != null);
         cinematic = cfg.cinematicHome && streamingBackdrop == null;
         glowStyle = cfg.glowStyle;
         if (cinematic) setUpCinematicShelf();

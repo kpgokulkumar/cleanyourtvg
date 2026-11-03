@@ -244,6 +244,11 @@
          pictures in wallpapers/ ("01-dusk.jpg<TAB>Dusk over the peaks", one per line). A picture without a line
          shows no name. Can also be set with "wallpaper_captions": true in a theme's config.json. -->
     <bool name="wallpaper_captions">false</bool>
+    <!-- Loop wallpaper.mp4 from the theme folder behind Home, silently, in place of the picture. The picture stays
+         until the video's first frame is up and comes back whenever the video cannot play. The video stops and
+         lets its decoder go as soon as Home is left. 1080p H.264 or HEVC; 4K decodes but shows no sharper on a
+         1080p UI. Can also be set with "wallpaper_video": true in a theme's config.json. -->
+    <bool name="wallpaper_video">false</bool>
     <!-- Hold OK on a tile opens a small menu: Move (picks the tile up for reordering), Remove from Home (only with
          app_library) and App info. false keeps the old behaviour: holding OK opens the app's App info page.
          Can also be set with "tile_menu": true in a theme's config.json. -->
